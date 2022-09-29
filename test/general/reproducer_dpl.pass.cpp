@@ -1,6 +1,8 @@
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/algorithm>
+#if TEST_DPCPP_BACKEND_PRESENT
 #include <CL/sycl.hpp>
+#endif
 //#include <dpct/dpct.hpp>
 //#include <dpct/dpl_utils.hpp>
 
@@ -98,6 +100,7 @@ namespace {
 // }
 }
 
+#if TEST_DPCPP_BACKEND_PRESENT
 template <typename index_t>
 void
 test(index_t* data, int num)
@@ -113,13 +116,18 @@ test(index_t* data, int num)
         oneapi::dpl::make_reverse_iterator(sorted_data + num), oneapi::dpl::make_reverse_iterator(sorted_data + num),
         std::equal_to<index_t>(), oneapi::dpl::maximum<index_t>());
 }
+#endif
 
 int
 main()
 {
+#if TEST_DPCPP_BACKEND_PRESENT
     int* data = new int[10]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     test<int>(data, 10);
     int64_t* data64 = new int64_t[10]{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     test<int64_t>(data64, 10);
     std::cout << "pass\n";
+#endif
+
+    return 0;
 }
