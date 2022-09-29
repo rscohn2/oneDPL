@@ -1,10 +1,10 @@
 #include <oneapi/dpl/execution>
 #include <oneapi/dpl/algorithm>
 #include <CL/sycl.hpp>
-#include <dpct/dpct.hpp>
-#include <dpct/dpl_utils.hpp>
+//#include <dpct/dpct.hpp>
+//#include <dpct/dpl_utils.hpp>
 
-//namespace {
+namespace {
 // template <typename _Tp> class constant_iterator {
 // public:
 //   typedef std::false_type is_hetero;
@@ -96,7 +96,7 @@
 // constant_iterator<_Tp> make_constant_iterator(_Tp __value) {
 //   return constant_iterator<_Tp>(__value);
 // }
-//}
+}
 
 template <typename index_t>
 void
