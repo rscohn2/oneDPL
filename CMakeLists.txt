@@ -72,12 +72,16 @@ string(TOUPPER ${ONEDPL_BACKEND} ONEDPL_BACKEND)
 message(STATUS "Using parallel policies with ${ONEDPL_BACKEND} backend")
 string(TOLOWER ${ONEDPL_BACKEND} ONEDPL_BACKEND)
 
+# CMAKE_CXX_COMPILER and CMAKE_CXX_COMPILER_VERSION cannot be used because
+# CMake 3.19 and older will detect IntelLLVM compiler as CLang with CLang-specific version, see https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html
+if (CMAKE_CXX_COMPILER MATCHES ".*(dpcpp-cl|dpcpp|icx-cl|icpx)(.exe)?$")
+    set(DPCPP_COMPLER TRUE)
+    execute_process(COMMAND ${CMAKE_CXX_COMPILER} --version OUTPUT_VARIABLE DPCPP_COMPILER_VERSION_RAW)
+    string(REGEX MATCH "[0-9][0-9][0-9][0-9]\\.[0-9]\\.[0-9]" DPCPP_COMPILER_VERSION ${DPCPP_COMPILER_VERSION_RAW})
+endif()
+
 if (ONEDPL_ENABLE_SIMD)
-    if (CMAKE_CXX_COMPILER MATCHES ".*dpcpp(-cl)?(.exe)?$")
-        execute_process(COMMAND ${CMAKE_CXX_COMPILER} --version OUTPUT_VARIABLE VER)
-        string(REGEX MATCH "[0-9][0-9][0-9][0-9]\\.[0-9]\\.[0-9]" DPCPP_VER ${VER})
-    endif()
-    if (NOT CMAKE_CXX_COMPILER MATCHES ".*dpcpp(-cl)?(.exe)?$" OR NOT DPCPP_VER VERSION_LESS 2021.4)
+    if (NOT DPCPP_COMPLER OR NOT DPCPP_COMPILER_VERSION VERSION_LESS 2021.4)
         foreach(_simd_flag -fopenmp-simd /Qopenmp-simd -qopenmp-simd -openmp-simd)
             string(MAKE_C_IDENTIFIER ${_simd_flag} FLAG_DISPLAY_NAME)
             check_cxx_compiler_flag(${_simd_flag} ${FLAG_DISPLAY_NAME}_option)
@@ -134,6 +138,12 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
             "It is required if ONEDPL_BACKEND=${ONEDPL_BACKEND}")
         endif()
 
+        # Enable SYCL* with compilers/compiler drivers not passing -fsycl by default
+        if (_fsycl_option AND NOT CMAKE_CXX_COMPILER MATCHES ".*(dpcpp-cl|dpcpp)(.exe)?$")
+            message(STATUS "Adding -fsycl compiler option")
+            set(USE_FSYCL_OPTION TRUE)
+        endif()
+
         # settings for the specific compilation type
         if (NOT ONEDPL_USE_AOT_COMPILATION)
             message(STATUS "Use the ahead of time compilation. No additional parameters needed")
@@ -151,29 +161,44 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
         endif()
 
         # check device type
-        if (NOT ONEDPL_DEVICE_TYPE)
-            set(ONEDPL_DEVICE_TYPE "GPU")
-            message(STATUS "Use GPU as default device")
-        endif()
-
         string(TOUPPER ${ONEDPL_DEVICE_TYPE} ONEDPL_DEVICE_TYPE)
-        if (ONEDPL_DEVICE_TYPE MATCHES "^(CPU|GPU|FPGA_EMU|FPGA_HW?)$")
-            message(STATUS "Compilation for ${ONEDPL_DEVICE_TYPE}")
+        if (ONEDPL_DEVICE_TYPE MATCHES "^(CPU|GPU|FPGA_EMU|FPGA_HW)$")
+            message(STATUS "Using ${ONEDPL_DEVICE_TYPE} device type")
             set(ONEDPL_USE_DEVICE_${ONEDPL_DEVICE_TYPE} TRUE)
-        else()
+        elseif(DEFINED ONEDPL_DEVICE_BACKEND)
             message(FATAL_ERROR "Unsupported device type: ${ONEDPL_DEVICE_TYPE}.\n"
                 "Select one of the following devices: CPU, GPU, FPGA_EMU or FPGA_HW")
+        else()
+            set(ONEDPL_DEVICE_TYPE "GPU")
+            message(STATUS "Using a default device type (GPU)")
         endif()
 
         # check device backend
-        if (ONEDPL_DEVICE_BACKEND MATCHES "^(opencl|level_zero)$")
-            message(STATUS "Compilation using ${ONEDPL_DEVICE_BACKEND} device backend")
+        if (ONEDPL_DEVICE_BACKEND MATCHES "^(opencl|level_zero|cuda|hip|\\*)$")
+            message(STATUS "Using ${ONEDPL_DEVICE_BACKEND} device backend")
         elseif (DEFINED ONEDPL_DEVICE_BACKEND)
             message(FATAL_ERROR "Unsupported device backend: ${ONEDPL_DEVICE_BACKEND}.\n"
-                "Select one of the following device backends: opencl or level_zero")
+                "Select one of the following device backends: opencl, level_zero, cuda, hip or *")
         else()
             set(ONEDPL_DEVICE_BACKEND "*")
-            message(STATUS "Use a default device backend")
+            message(STATUS "Using a default device backend (*)")
+        endif()
+
+        # set up device selection line basing on ONEDPL_DEVICE_BACKEND and ONEDPL_DEVICE_TYPE values
+        if (DEFINED ONEDPL_DEVICE_BACKEND AND DEFINED ONEDPL_DEVICE_TYPE)
+            if (DPCPP_COMPLER AND DPCPP_COMPILER_VERSION VERSION_LESS 2023.1)
+                set(DEVICE_SELECTION_VARIABLE "SYCL_DEVICE_FILTER")
+                set(FPGA_DEVICE_TYPE "acc")
+            else()
+                set(DEVICE_SELECTION_VARIABLE "ONEAPI_DEVICE_FILTER")
+                set(FPGA_DEVICE_TYPE "fpga")
+            endif()
+            if (ONEDPL_DEVICE_TYPE MATCHES "FPGA")
+                set(DEVICE_SELECTION_LINE "${DEVICE_SELECTION_VARIABLE}=${ONEDPL_DEVICE_BACKEND}:${FPGA_DEVICE_TYPE}")
+            else()
+                string(TOLOWER ${ONEDPL_DEVICE_TYPE} ONEDPL_DEVICE_TYPE)
+                set(DEVICE_SELECTION_LINE "${DEVICE_SELECTION_VARIABLE}=${ONEDPL_DEVICE_BACKEND}:${ONEDPL_DEVICE_TYPE}")
+            endif()
         endif()
 
         # Check correctness of STATIC_REPORT
@@ -187,6 +212,7 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
 
         # DPC++ specific compiler options
         target_compile_options(oneDPL INTERFACE
+            $<$<BOOL:${USE_FSYCL_OPTION}>:-fsycl>
             $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:-fintelfpga>
             )
         if (DEFINED ONEDPL_USE_UNNAMED_LAMBDA)
@@ -207,6 +233,7 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
 
         # DPC++ specific link options
         target_link_libraries(oneDPL INTERFACE
+            $<$<BOOL:${USE_FSYCL_OPTION}>:-fsycl>
             $<$<OR:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_USE_DEVICE_FPGA_EMU}>>:-fintelfpga>
             $<$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>:-Xshardware>
             $<$<AND:$<BOOL:${ONEDPL_USE_DEVICE_FPGA_HW}>,$<BOOL:${ONEDPL_FPGA_STATIC_REPORT}>>:-fsycl-link>
