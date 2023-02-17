@@ -75,13 +75,13 @@ string(TOLOWER ${ONEDPL_BACKEND} ONEDPL_BACKEND)
 # CMAKE_CXX_COMPILER and CMAKE_CXX_COMPILER_VERSION cannot be used because
 # CMake 3.19 and older will detect IntelLLVM compiler as CLang with CLang-specific version, see https://cmake.org/cmake/help/latest/variable/CMAKE_LANG_COMPILER_ID.html
 if (CMAKE_CXX_COMPILER MATCHES ".*(dpcpp-cl|dpcpp|icx-cl|icpx)(.exe)?$")
-    set(DPCPP_COMPLER TRUE)
-    execute_process(COMMAND ${CMAKE_CXX_COMPILER} --version OUTPUT_VARIABLE DPCPP_COMPILER_VERSION_RAW)
-    string(REGEX MATCH "[0-9][0-9][0-9][0-9]\\.[0-9]\\.[0-9]" DPCPP_COMPILER_VERSION ${DPCPP_COMPILER_VERSION_RAW})
+    set(INTEL_LLVM_COMPILER TRUE)
+    execute_process(COMMAND ${CMAKE_CXX_COMPILER} --version OUTPUT_VARIABLE INTEL_LLVM_COMPILER_VERSION_RAW)
+    string(REGEX MATCH "[0-9][0-9][0-9][0-9]\\.[0-9]\\.[0-9]" INTEL_LLVM_COMPILER_VERSION ${INTEL_LLVM_COMPILER_VERSION_RAW})
 endif()
 
 if (ONEDPL_ENABLE_SIMD)
-    if (NOT DPCPP_COMPLER OR NOT DPCPP_COMPILER_VERSION VERSION_LESS 2021.4)
+    if (NOT INTEL_LLVM_COMPILER OR NOT INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2021.4)
         foreach(_simd_flag -fopenmp-simd /Qopenmp-simd -qopenmp-simd -openmp-simd)
             string(MAKE_C_IDENTIFIER ${_simd_flag} FLAG_DISPLAY_NAME)
             check_cxx_compiler_flag(${_simd_flag} ${FLAG_DISPLAY_NAME}_option)
@@ -186,7 +186,7 @@ if (ONEDPL_BACKEND MATCHES "^(tbb|dpcpp|dpcpp_only)$")
 
         # set up device selection line basing on ONEDPL_DEVICE_BACKEND and ONEDPL_DEVICE_TYPE values
         if (DEFINED ONEDPL_DEVICE_BACKEND AND DEFINED ONEDPL_DEVICE_TYPE)
-            if (DPCPP_COMPLER AND DPCPP_COMPILER_VERSION VERSION_LESS 2023.1)
+            if (INTEL_LLVM_COMPILER AND INTEL_LLVM_COMPILER_VERSION VERSION_LESS 2023.1)
                 set(DEVICE_SELECTION_VARIABLE "SYCL_DEVICE_FILTER")
                 set(FPGA_DEVICE_TYPE "acc")
             else()
