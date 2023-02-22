@@ -118,7 +118,7 @@ __pattern_transform_scan_base_impl(_ExecutionPolicy&& __exec, _Iterator1 __first
     // Next power of 2 greater than or equal to __n
     auto __n_uniform = __n;
     if ((__n_uniform & (__n_uniform - 1)) != 0)
-        __n_uniform = __par_backend_hetero::__dpl_bit_floor(__n) << 1;
+        __n_uniform = __dpl_bit_floor(__n) << 1;
 
     const auto __max_slm_size = __exec.queue().get_device().template get_info<sycl::info::device::local_mem_size>();
     const auto __req_slm_size = sizeof(_Type) * __n_uniform;
