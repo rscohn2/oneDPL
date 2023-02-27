@@ -35,7 +35,7 @@ struct __subgroup_radix_sort
     {
         using _KeyT = oneapi::dpl::__internal::__value_t<_RangeIn>;
         //check SLM size
-        if (__check_slm_size<_KeyT>(__q, __src.size()))
+        if (__ckeck_slm_size<_KeyT>(__q, __src.size()))
             return __submit<__i_kernel_name<_KernelNameBase, 0>, std::true_type /*SLM*/>(
                 __q, ::std::forward<_RangeIn>(__src));
         else
@@ -111,9 +111,9 @@ struct __subgroup_radix_sort
 
     template <typename _T, typename _Size>
     bool
-    __check_slm_size(sycl::queue __q, _Size __n)
+    __ckeck_slm_size(sycl::queue __q, _Size __n)
     {
-        assert(__n <= 1 << 16); // max allowed data size <= 64K
+        assert(__n <= 1 << (sizeof(uint16_t) * 8)); //the kernel is designed for data size <= 64K
 
         const auto __max_slm_size = __q.get_device().template get_info<sycl::info::device::local_mem_size>();
 
@@ -148,7 +148,7 @@ struct __subgroup_radix_sort
                     _KeyT __keys[__block_size];
                     uint16_t __wi = __it.get_local_linear_id();
                     uint16_t __begin_bit = 0;
-                    constexpr uint16_t __end_bit = sizeof(_KeyT) * ::std::numeric_limits<unsigned char>::digits;
+                    constexpr uint16_t __end_bit = sizeof(_KeyT) * 8;
 
                     //we use numeric_limits::lowest for floating-point types with denormalization,
                     //due to numeric_limits::min gets the minimum positive normalized value
