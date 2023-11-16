@@ -17,7 +17,12 @@ env:
 
 jobs:
   clang-format:
+<<<<<<< Updated upstream
     runs-on: ubuntu-20.04
+=======
+    if: github.event_name == 'pull_request'
+    runs-on: ${{ github.repository_owner == 'oneapi-src' && 'intel-ubuntu-latest' || 'ubuntu-latest' }}
+>>>>>>> Stashed changes
     steps:
       - uses: actions/checkout@v2
         with:
@@ -41,7 +46,7 @@ jobs:
           retention-days: 3
 
   codespell:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.repository_owner == 'oneapi-src' && 'intel-ubuntu-latest' || 'ubuntu-latest' }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v2
@@ -53,7 +58,7 @@ jobs:
           ${GITHUB_WORKSPACE}/.github/scripts/codespell.sh $(pwd)
 
   documentation:
-    runs-on: ubuntu-latest
+    runs-on: ${{ github.repository_owner == 'oneapi-src' && 'intel-ubuntu-latest' || 'ubuntu-latest' }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
@@ -97,13 +102,21 @@ jobs:
             build_type: release
             backend: omp
             device_type: HOST
+<<<<<<< Updated upstream
           - os: ubuntu-18.04
+=======
+          - os: ${{ github.repository_owner == 'oneapi-src' && 'intel-ubuntu-latest' || 'ubuntu-latest' }}
+>>>>>>> Stashed changes
             cxx_compiler: g++
             std: 17
             build_type: release
             backend: omp
             device_type: HOST
+<<<<<<< Updated upstream
           - os: ubuntu-18.04
+=======
+          - os: ${{ github.repository_owner == 'oneapi-src' && 'intel-ubuntu-latest' || 'ubuntu-latest' }}
+>>>>>>> Stashed changes
             cxx_compiler: g++
             std: 17
             build_type: release
@@ -127,7 +140,11 @@ jobs:
             build_type: release
             backend: omp
             device_type: HOST
+<<<<<<< Updated upstream
           - os: ubuntu-18.04
+=======
+          - os: ${{ github.repository_owner == 'oneapi-src' && 'intel-ubuntu-latest' || 'ubuntu-latest' }}
+>>>>>>> Stashed changes
             cxx_compiler: clang++
             std: 17
             build_type: release
